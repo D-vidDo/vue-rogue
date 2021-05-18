@@ -4,7 +4,7 @@
       <h1>Rogue Game</h1>
       <div>
         gold: {{ gold }} crit chance: {{ critchance }} hp bonus:
-        {{ hpBonus }} overheal: {{ overheal }}
+        {{ hpBonus }} overheal: {{ overheal }} kills: {{killCount}}
         <table class="table table-striped table-bordered">
           <thead>
             <tr>
@@ -18,18 +18,11 @@
               <td>{{ item.name }}</td>
               <td>{{ item.cost }}</td>
               <td>
-                <v-btn
-                  v-on:click="
-                    purchaseItem(item.cost, item.type, item.value), shopSnack()
-                  "
-                  >Buy</v-btn
-                >
+                <v-btn v-on:click="purchaseItem(item.cost, item.type, item.value), shopSnack()">Buy</v-btn>
               </td>
             </tr>
           </tbody>
         </table>
-
-        <!--  -->
 
         <Snackbar />
         <v-snackbar v-model="snackbar" timeout="2500">
@@ -47,7 +40,7 @@
         </v-progress-linear>
 
         enemy hp: {{ enemyHP }}
-        <v-progress-linear color="red" height="20" v-bind:value="enemyHP">
+        <v-progress-linear color="red" height="20" v-bind:value="enemyHP/100*100">
         </v-progress-linear>
 
         <v-btn v-on:click="attack()">Attack</v-btn>
@@ -73,6 +66,7 @@ export default {
       snackbar: "",
       timeout: 500,
       inBattle: false,
+      killCount: 0,
       // base health
       enemyHP: 100,
       playerHP: 100,
@@ -120,7 +114,7 @@ export default {
         this.playerDamageMax
       );
       if (Math.random() >= 1 - this.critchance) {
-        dmg *= 2;
+        dmg *= 1.5;
         this.enemyHP -= dmg;
         this.playerMessage = "⚔️⚡You CRITICALLY STRIKE for " + dmg + "!!⚡⚔️";
       } else {
@@ -180,42 +174,49 @@ export default {
         this.nextEnemy();
         return true;
       } else if (this.playerHP <= 0) {
-        confirm("You lose!");
+        confirm("You lose!" + this.killCount);
         this.resetGame();
       }
     },
     resetGame() {
       // base health
-      this.enemyHP = 100;
-      this.playerHP = 100;
-      this.hpBonus = 0;
-      this.overheal = false;
-      this.healcd = 5;
+      this.enemyHP = 100
+      this.playerHP = 100
+      this.hpBonus = 0
+      this.overheal = false
+      this.healcd = 5
       // attack base damage stats
-      this.playerDamageMin = 1;
-      this.playerDamageMax = 10;
-      this.critchance = 0;
+      this.playerDamageMin = 5
+      this.playerDamageMax = 10
+      this.critchance = 0
       // base heal stats
-      this.playerHealMin = 5;
-      this.playerHealMax = 20;
+      this.playerHealMin = 5
+      this.playerHealMax = 20
       // enemy base damage stats
-      this.enemyDamageMin = 1;
-      this.enemyDamageMax = 10;
+      this.enemyDamageMin = 2
+      this.enemyDamageMax = 8
       // gold
-      this.gold = 0;
+      this.gold = 0
+      // scaling stats
+      this.hpScaling = 0
+      this.goldScaling = 0
+      this.killCount = 0
     },
     nextEnemy() {
       this.playerHP = 100 + this.hpBonus;
       this.enemyHP = 100 + this.hpScaling;
       this.goldScaling += 25;
-      this.hpScaling += 25;
-      this.enemyDamageMin += 2;
+      this.hpScaling += 10;
+      this.enemyDamageMin += 3;
       this.enemyDamageMax += 5;
       this.playerDamageMin += 2;
-      this.playerDamageMax += 5;
+      this.playerDamageMax += 8;
+      this.playerHealMin += 5;
+      this.playerHealMax += 10;
       this.healcd = 5;
       this.gold += 25 + this.goldScaling;
       this.inBattle = false;
+      this.killCount++;
     },
     purchaseItem(itemCost, itemStat, itemVal) {
       if (this.inBattle) {
