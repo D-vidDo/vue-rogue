@@ -3,9 +3,10 @@
     <v-main>
       <h1>Rogue Game</h1>
       <div>
-        gold: {{ gold }} crit chance: {{ critchance }} hp bonus:
-        {{ hpBonus }} overheal: {{ overheal }} kills: {{killCount}}
-        <table class="table table-striped table-bordered">
+        <table
+          class="table table-striped table-bordered"
+          style="margin-top: 10px; margin-left: 20px"
+        >
           <thead>
             <tr>
               <th>Item</th>
@@ -18,10 +19,35 @@
               <td>{{ item.name }}</td>
               <td>{{ item.cost }}</td>
               <td>
-                <v-btn v-on:click="purchaseItem(item.cost, item.type, item.value), shopSnack()">Buy</v-btn>
+                <v-btn
+                  v-on:click="
+                    purchaseItem(item.cost, item.type, item.value), shopAlert()
+                  "
+                  >Buy</v-btn
+                >
               </td>
             </tr>
           </tbody>
+        </table>
+        <table style="margin-top: 10px; margin-left: 20px">
+          <tr>
+            <td>crit chance: {{ critchance * 100 }}%</td>
+            <td>gold: {{ gold }}</td>
+            <td>hp bonus:{{ hpBonus }}</td>
+          </tr>
+          <tr>
+            <td>overheal: {{ overheal }}</td>
+            <td>lifesteal: {{ lifesteal }}</td>
+            <td>kills: {{ killCount }}</td>
+          </tr>
+          <tr>
+            <td>hero min atk: {{ playerDamageMin }}</td>
+            <td>hero max atk: {{ playerDamageMax }}</td>
+          </tr>
+          <tr>
+            <td>enemy min atk: {{ enemyDamageMin }}</td>
+            <td>enemy max atk: {{ enemyDamageMax }}</td>
+          </tr>
         </table>
 
         <Snackbar />
@@ -35,23 +61,31 @@
         </v-snackbar>
       </div>
       <body>
-        your hp: {{ playerHP }}
+        <br />your hp: {{ playerHP }}
         <v-progress-linear color="green" height="20" v-bind:value="playerHP">
         </v-progress-linear>
 
         enemy hp: {{ enemyHP }}
-        <v-progress-linear color="red" height="20" v-bind:value="enemyHP/100*100">
+        <v-progress-linear color="red" height="20" v-bind:value="enemyHP">
         </v-progress-linear>
 
-        <v-btn v-on:click="attack()">Attack</v-btn>
-        <v-btn v-on:click="heal()">Heal</v-btn>
-
-        <v-sheet color="white" elevation="1">
-          <v-alert type="success">{{ playerMessage }}</v-alert>
-          <v-alert type="error">{{ enemyMessage }}</v-alert>
+        <v-sheet
+          style="padding-top: 50px; margin-left: 600px; margin-right: 600px"
+        >
+          <v-alert id="v-alert1" STYLE="display:none" dense type="success">{{
+            playerMessage
+          }}</v-alert>
+          <v-alert id="v-alert2" STYLE="display:none" dense type="error">{{
+            enemyMessage
+          }}</v-alert>
         </v-sheet>
       </body>
     </v-main>
+    <v-bottom-navigation>
+      <v-btn v-on:click="attack()">Attack</v-btn>
+      <v-btn v-on:click="specialAttack()">Special Attack</v-btn>
+      <v-btn v-on:click="heal()">Heal - {{ healcd }}</v-btn>
+    </v-bottom-navigation>
   </v-app>
 </template>
 
@@ -71,7 +105,6 @@ export default {
       enemyHP: 100,
       playerHP: 100,
       hpBonus: 0,
-      overheal: false,
       healcd: 5,
       // attack base damage stats
       playerDamageMin: 5,
@@ -96,14 +129,25 @@ export default {
       items: [
         // health
         { value: 10, name: "HP +10", cost: 50, type: "hp" },
-        { value: 30, name: "HP +30", cost: 75, type: "hp" },
-        { value: 50, name: "HP +50", cost: 120, type: "hp" },
-        //crit
-        { value: 0.1, name: "Crit +10%", cost: 150, type: "crit" },
-        { value: 0.25, name: "Crit +25%", cost: 300, type: "crit" },
+        { value: 30, name: "HP +30", cost: 125, type: "hp" },
+        { value: 100, name: "HP +100", cost: 400, type: "hp" },
+        { value: 500, name: "HP +500", cost: 1800, type: "hp" },
+        { value: 1000, name: "HP +1000", cost: 3500, type: "hp" },
+        // crit
+        { value: 0.1, name: "Crit +10%", cost: 400, type: "crit" },
+        { value: 0.25, name: "Crit +25%", cost: 900, type: "crit" },
         // overheal
         { value: "overheal", name: "Overheal", cost: 500, type: "item" },
+        {
+          value: "lifesteal",
+          name: "Lifesteal (25% Damage)",
+          cost: 500,
+          type: "item",
+        },
       ],
+      // item buffs
+      overheal: false,
+      lifesteal: false,
     };
   },
 
@@ -117,9 +161,19 @@ export default {
         dmg *= 1.5;
         this.enemyHP -= dmg;
         this.playerMessage = "⚔️⚡You CRITICALLY STRIKE for " + dmg + "!!⚡⚔️";
+        if (this.lifesteal) {
+          this.playerHP += Math.round(dmg * 0.25);
+          this.playerMessage +=
+            "\n🩹You lifesteal for " + Math.round(dmg * 0.25) + "🩹";
+        }
       } else {
         this.enemyHP -= dmg;
         this.playerMessage = "⚔️You attack for " + dmg + "⚔️";
+        if (this.lifesteal) {
+          this.playerHP += Math.round(dmg * 0.25);
+          this.playerMessage +=
+            "\n🩹You lifesteal for " + Math.round(dmg * 0.25) + "🩹";
+        }
       }
       this.healcd--;
       if (this.checkWin()) {
@@ -127,7 +181,35 @@ export default {
       }
       this.enemyAttack();
     },
-    shopSnack() {
+    specialAttack() {
+      let dmg =
+        this.calculateDamage(this.playerDamageMin, this.playerDamageMax) * 2;
+      if (Math.random() >= 1 - this.critchance) {
+        dmg *= 1.5;
+        this.enemyHP -= dmg;
+        this.playerMessage =
+          "⚔️⚡YOUR SPECIAL ATTACK CRIT!!! FOR " + dmg + "!!⚡⚔️";
+        if (this.lifesteal) {
+          this.playerHP += Math.round(dmg * 0.25);
+          this.playerMessage +=
+            "\n🩹You lifesteal for " + Math.round(dmg * 0.25) + "🩹";
+        }
+      } else {
+        this.enemyHP -= dmg;
+        this.playerMessage = "⚔️Special Attack!!!! " + dmg + "⚔️";
+        if (this.lifesteal) {
+          this.playerHP += Math.round(dmg * 0.25);
+          this.playerMessage +=
+            "\n🩹You lifesteal for " + Math.round(dmg * 0.25) + "🩹";
+        }
+      }
+      this.healcd--;
+      if (this.checkWin()) {
+        return;
+      }
+      this.enemyAttack();
+    },
+    shopAlert() {
       return (this.snackbar = true);
     },
     enemyAttack() {
@@ -136,6 +218,12 @@ export default {
       this.playerHP -= dmg;
       this.checkWin();
       this.inBattle = true;
+      var x = document.getElementById("v-alert1");
+      var y = document.getElementById("v-alert2");
+      if (x.style.display === "none") {
+        x.style.display = "block";
+        y.style.display = "block";
+      }
       return;
     },
     calculateDamage(min, max) {
@@ -170,7 +258,9 @@ export default {
     },
     checkWin() {
       if (this.enemyHP <= 0) {
-        confirm("You slaughtered the enemy... A stronger one approaches\nAtk +5");
+        confirm(
+          "You slaughtered the enemy... A stronger one approaches\nAtk +5"
+        );
         this.nextEnemy();
         return true;
       } else if (this.playerHP <= 0) {
@@ -180,47 +270,55 @@ export default {
     },
     resetGame() {
       // base health
-      this.enemyHP = 100
-      this.playerHP = 100
-      this.hpBonus = 0
-      this.overheal = false
-      this.healcd = 5
+      this.enemyHP = 100;
+      this.playerHP = 100;
+      this.hpBonus = 0;
+      this.overheal = false;
+      this.healcd = 5;
       // attack base damage stats
-      this.playerDamageMin = 5
-      this.playerDamageMax = 10
-      this.critchance = 0
+      this.playerDamageMin = 5;
+      this.playerDamageMax = 10;
+      this.critchance = 0;
       // base heal stats
-      this.playerHealMin = 5
-      this.playerHealMax = 20
+      this.playerHealMin = 5;
+      this.playerHealMax = 20;
       // enemy base damage stats
-      this.enemyDamageMin = 2
-      this.enemyDamageMax = 8
+      this.enemyDamageMin = 2;
+      this.enemyDamageMax = 8;
       // gold
-      this.gold = 0
+      this.gold = 0;
       // scaling stats
-      this.hpScaling = 0
-      this.goldScaling = 0
-      this.killCount = 0
+      this.hpScaling = 0;
+      this.goldScaling = 0;
+      this.killCount = 0;
     },
     nextEnemy() {
       this.playerHP = 100 + this.hpBonus;
+      this.hpScaling += 10;
       this.enemyHP = 100 + this.hpScaling;
       this.goldScaling += 25;
-      this.hpScaling += 10;
-      this.enemyDamageMin += 3;
-      this.enemyDamageMax += 5;
-      this.playerDamageMin += 2;
-      this.playerDamageMax += 8;
+      this.enemyDamageMin += 2;
+      this.enemyDamageMax += 3;
+      this.playerDamageMin += 1;
+      this.playerDamageMax += 4;
       this.playerHealMin += 5;
       this.playerHealMax += 10;
       this.healcd = 5;
       this.gold += 25 + this.goldScaling;
       this.inBattle = false;
       this.killCount++;
+      this.message = "Shop is now open! Buy items before you enter combat!";
+      this.shopAlert();
+      var x = document.getElementById("v-alert1");
+      var y = document.getElementById("v-alert2");
+      if (x.style.display === "block") {
+        x.style.display = "none";
+        y.style.display = "none";
+      }
     },
     purchaseItem(itemCost, itemStat, itemVal) {
       if (this.inBattle) {
-        this.message="Currently in battle! Can't buy items.";
+        this.message = "Currently in battle! Can't buy items.";
       } else {
         if (itemCost > this.gold) {
           this.message = "Not Enough Gold!";
@@ -237,6 +335,8 @@ export default {
           } else if (itemStat == "item") {
             if (itemVal == "overheal") {
               this.overheal = true;
+            } else if (itemVal == "lifesteal") {
+              this.lifesteal = true;
             }
             this.gold -= itemCost;
             this.message = "Item Bought!";
@@ -246,7 +346,6 @@ export default {
     },
   },
   components: {
-    //Snackbar,
     Snackbar,
   },
   mounted() {
@@ -266,9 +365,6 @@ table,
 th,
 td {
   border: 1px solid black;
-  text-align: center;
-}
-v-row {
   text-align: center;
 }
 </style>
